@@ -32,13 +32,11 @@ public class BookingService {
      * is placed on the room's waitlist.
      */
     public BookingResult book(Room room, User user, TimeInterval interval) {
-        for (Booking existing : store.bookingsForRoom(room)) {
-            if (existing.interval().overlaps(interval)) {
-                int position = store.waitlistForRoom(room).size() + 1;
-                int seq = nextWaitlistSeq++;
-                store.addWaitlistEntry(new WaitlistEntry("w" + seq, room, user, interval, seq));
-                return new BookingResult.Waitlisted(position);
-            }
+        if (!isAvailable(room, interval)) {
+            int position = store.waitlistForRoom(room).size() + 1;
+            int seq = nextWaitlistSeq++;
+            store.addWaitlistEntry(new WaitlistEntry("w" + seq, room, user, interval, seq));
+            return new BookingResult.Waitlisted(position);
         }
         Booking booking = new Booking("b" + nextBookingSeq++, room, user, interval);
         store.addBooking(booking);
@@ -67,7 +65,7 @@ public class BookingService {
         List<WaitlistEntry> waiting = new ArrayList<>(store.waitlistForRoom(room));
         waiting.sort(Comparator.comparingInt(WaitlistEntry::seq));
         for (WaitlistEntry entry : waiting) {
-            if (isFree(room, entry.interval())) {
+            if (isAvailable(room, entry.interval())) {
                 Booking promoted =
                     new Booking("b" + nextBookingSeq++, room, entry.user(), entry.interval());
                 store.addBooking(promoted);
@@ -77,10 +75,19 @@ public class BookingService {
         }
     }
 
-    /** Whether {@code room} holds no confirmed booking overlapping {@code interval}. */
-    private boolean isFree(Room room, TimeInterval interval) {
-        return store.bookingsForRoom(room).stream()
-            .noneMatch(booking -> booking.interval().overlaps(interval));
+    /**
+     * Reports whether {@code room} is free over {@code interval}, so callers can
+     * check availability before attempting to book. Answers exactly what
+     * {@link #book} will do, because both decide clashes with
+     * {@link TimeInterval#overlaps}.
+     */
+    public boolean isAvailable(Room room, TimeInterval interval) {
+        for (Booking existing : store.bookingsForRoom(room)) {
+            if (existing.interval().overlaps(interval)) {
+                return false;
+            }
+        }
+        return true;
     }
 
     /** Returns the confirmed bookings for {@code room}. */
