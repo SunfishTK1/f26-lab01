@@ -12,3 +12,6 @@ transcripts/
 .settings/
 .classpath
 .project
+
+# Local write-up of how the lab was solved; the fork is public.
+LAB-NOTES.md
