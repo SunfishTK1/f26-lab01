@@ -6,6 +6,8 @@ import edu.cmu.cs214.booking.domain.TimeInterval;
 import edu.cmu.cs214.booking.domain.User;
 import edu.cmu.cs214.booking.domain.WaitlistEntry;
 import edu.cmu.cs214.booking.repo.BookingStore;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -53,6 +55,32 @@ public class BookingService {
             return;
         }
         store.removeBooking(bookingId);
+        promoteFromWaitlist(cancelled.get().room());
+    }
+
+    /**
+     * Promotes at most one waiter for {@code room}: the earliest by arrival order whose
+     * interval clears every booking the room still holds. Waiters who would still clash
+     * are skipped and left on the waitlist, so promotion cannot break the invariant.
+     */
+    private void promoteFromWaitlist(Room room) {
+        List<WaitlistEntry> waiting = new ArrayList<>(store.waitlistForRoom(room));
+        waiting.sort(Comparator.comparingInt(WaitlistEntry::seq));
+        for (WaitlistEntry entry : waiting) {
+            if (isFree(room, entry.interval())) {
+                Booking promoted =
+                    new Booking("b" + nextBookingSeq++, room, entry.user(), entry.interval());
+                store.addBooking(promoted);
+                store.removeWaitlistEntry(entry.id());
+                return;
+            }
+        }
+    }
+
+    /** Whether {@code room} holds no confirmed booking overlapping {@code interval}. */
+    private boolean isFree(Room room, TimeInterval interval) {
+        return store.bookingsForRoom(room).stream()
+            .noneMatch(booking -> booking.interval().overlaps(interval));
     }
 
     /** Returns the confirmed bookings for {@code room}. */
