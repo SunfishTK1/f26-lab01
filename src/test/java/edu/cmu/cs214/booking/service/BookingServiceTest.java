@@ -54,6 +54,42 @@ class BookingServiceTest {
         assertInstanceOf(BookingResult.Confirmed.class, r);
     }
 
+    @Test
+    void cancelFreesTheSlot() {
+        BookingService svc = newService();
+        BookingResult first = svc.book(roomA, alice, new TimeInterval(600, 660));
+        String id = assertInstanceOf(BookingResult.Confirmed.class, first).booking().id();
+
+        svc.cancelBooking(id);
+
+        assertEquals(0, svc.listBookings(roomA).size());
+        assertInstanceOf(
+            BookingResult.Confirmed.class, svc.book(roomA, bob, new TimeInterval(600, 660)));
+    }
+
+    @Test
+    void cancelUnknownIdDoesNothing() {
+        BookingService svc = newService();
+        svc.book(roomA, alice, new TimeInterval(600, 660));
+
+        svc.cancelBooking("no-such-booking");
+
+        assertEquals(1, svc.listBookings(roomA).size());
+    }
+
+    @Test
+    void cancelRemovesOnlyTheNamedBooking() {
+        BookingService svc = newService();
+        BookingResult first = svc.book(roomA, alice, new TimeInterval(600, 660));
+        svc.book(roomA, bob, new TimeInterval(660, 720));
+        String id = assertInstanceOf(BookingResult.Confirmed.class, first).booking().id();
+
+        svc.cancelBooking(id);
+
+        assertEquals(1, svc.listBookings(roomA).size());
+        assertEquals(660, svc.listBookings(roomA).get(0).interval().start());
+    }
+
     /**
      * The core invariant: no two confirmed bookings in a room may overlap. Asserted
      * after a run of overlapping, touching, and unrelated-room requests.
