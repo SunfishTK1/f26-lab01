@@ -14,9 +14,14 @@ import org.junit.jupiter.api.Test;
 /**
  * Reviews the proposed {@code isAvailable} from {@code changes/agent-attempt.patch}.
  *
- * <p>The contract that matters is not "does this method return a boolean" but
- * "does it agree with the booking invariant". A query that reports a taken slot
- * as available invites a caller to create the overlap the service exists to prevent.
+ * <p>As proposed, the method had zero call sites: nothing in the service or the suite
+ * invoked it. "It passes the tests" was therefore worth nothing, and no amount of
+ * running the existing suite would have found the bug. It needed a reader, and then a
+ * test written specifically against its contract.
+ *
+ * <p>The contract that matters is not "does this method return a boolean" but "does it
+ * agree with the booking invariant". A query that reports a taken slot as available
+ * invites a caller to create the overlap the service exists to prevent.
  */
 class IsAvailableTest {
 
